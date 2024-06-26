@@ -1,8 +1,9 @@
+const { default: axios } = require('axios');
 const server = require('http').createServer();
 const PORT = 9000;
 const io = require('socket.io')(server, {
     cors: {
-        origin: ["http://localhost:3000"],
+        origin: ["http://localhost:3000", "https://kometrading.vercel.app"],
         methods: ["GET", "POST"],
         allowedHeaders: ["ludoAuth"]
     }
@@ -51,27 +52,25 @@ const makeLamdaCalls = async (client) => {
             'Content-Type': 'application/json',
         }
     };
-    const masterData = await fetch(masterURI, options)
+    const masterData = await axios(masterURI, options)
         .then(async (resp) => {
-            return await resp.json();
+            return await resp.data;
         })
         .catch((e) => {
             console.log('get masterData failed  ', e);
-            client.emit(SocketEvents.STATUS_LOGS, { msg: 'SOCKET:MSG Error in getting master data, ALL STOP HERE' });
+            client.emit(SocketEvents.STATUS_LOGS, { msg: 'SOCKET:MSG Error in getting master data, ALL STOP HERE', reset: 1 });
         });
-    console.log('masterData  ', masterData);
     if (masterData) {
         client.emit(SocketEvents.STATUS_LOGS, { msg: 'SOCKET:MSG Getting master data success' });
         client.emit(SocketEvents.STATUS_LOGS, { msg: 'SOCKET:MSG Next do the login' });
-        const authToken = await fetch(authURI, options)
+        const authToken = await axios(authURI, options)
             .then(async (resp) => {
-                return await resp.text();
+                return await resp.data;
             })
             .catch((e) => {
                 console.log('get authToken failed  ', e);
-                client.emit(SocketEvents.STATUS_LOGS, { msg: 'SOCKET:MSG Error in getting auth Token, ALL STOP HERE' });
+                client.emit(SocketEvents.STATUS_LOGS, { msg: 'SOCKET:MSG Error in getting auth Token, ALL STOP HERE', reset: 1 });
             });
-        console.log('authToken>>  ', authToken);
         if (authToken) {
             client.emit(SocketEvents.STATUS_LOGS, { msg: 'SOCKET:MSG LOGIN success' });
             client.emit(SocketEvents.STATUS_LOGS, { msg: 'SOCKET:MSG Next get SLAVE DATA' });
@@ -79,15 +78,14 @@ const makeLamdaCalls = async (client) => {
             const { symbol, operation, volume, takeprofit, comment } = masterData;
             const queryStr = `id=${authToken}&symbol=${symbol}&operation=${operation}&volume=${volume}&takeprofit=${takeprofit}&comment=${comment}`;
             const uri = `${slaveURI}${queryStr}`;
-            const slaveData = await fetch(uri, options)
+            const slaveData = await axios(uri, options)
                 .then(async (resp) => {
-                    return await resp.json();
+                    return await resp.data;
                 })
                 .catch((e) => {
                     console.log('get authToken failed  ', e);
-                    client.emit(SocketEvents.STATUS_LOGS, { msg: 'SOCKET:MSG Error in getting SLAVE DATA, ALL STOP HERE' });
+                    client.emit(SocketEvents.STATUS_LOGS, { msg: 'SOCKET:MSG Error in getting SLAVE DATA, ALL STOP HERE', reset: 1 });
                 });
-            console.log('slaveData>>  ', slaveData);
             if (slaveData) {
                 client.emit(SocketEvents.STATUS_LOGS, { msg: 'SOCKET:MSG FINAL STEP COMPLETE, data sent to client' });
                 client.emit(SocketEvents.TRADE_COMPLETE, slaveData);
